@@ -1,0 +1,6 @@
+# Add this to your ~/.zshrc file to make gcloud easier to use
+
+# Google Cloud SDK
+export CLOUDSDK_PYTHON=$(which python3)
+alias gcloud="/opt/homebrew/share/google-cloud-sdk/bin/gcloud"
+alias gsutil="/opt/homebrew/share/google-cloud-sdk/bin/gsutil"

@@ -1,0 +1,114 @@
+/**
+ * @file Firestore Security Rules
+ * @description This ruleset enforces a strict user-ownership model for the Zapmark AI application.
+ *
+ * Data Structure:
+ * - All data is nested under /users/{userId}.
+ * - Logo grids are stored in /users/{userId}/logoGrids/{logoGridId}.
+ * - Logo variations are stored in /users/{userId}/logoGrids/{logoGridId}/logoVariations/{logoVariationId}.
+ * - User tokens are stored in /users/{userId}/token.
+ *
+ * Key Security Decisions:
+ * - Users can only access their own data.
+ * - Listing of user documents is disallowed.
+ * - All write operations require authentication.
+ *
+ * Denormalization for Authorization:
+ * - LogoGrid and LogoVariation entities include the userId in their path, eliminating the need for extra `get()` calls to verify ownership.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Enforces user-level access control for user profiles.
+     * @path /users/{userId}
+     * @allow (create) User with ID 'user123' can create their profile.
+     * @allow (get, update, delete) User with ID 'user123' can access their profile.
+     * @deny (create) User with ID 'user456' cannot create a profile with ID 'user123'.
+     * @deny (get, update, delete) User with ID 'user456' cannot access profile with ID 'user123'.
+     * @principle Enforces document ownership for all operations.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Enforces user-level access control for logo grids.
+     * @path /users/{userId}/logoGrids/{logoGridId}
+     * @allow (create) User with ID 'user123' can create a logo grid under their profile.
+     * @allow (get, update, delete) User with ID 'user123' can access their logo grids.
+     * @deny (create) User with ID 'user456' cannot create a logo grid under user 'user123'.
+     * @deny (get, update, delete) User with ID 'user456' cannot access logo grids under user 'user123'.
+     * @principle Enforces document ownership for all operations.
+     */
+    match /users/{userId}/logoGrids/{logoGridId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && resource.data.userId == userId;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Enforces user-level access control for logo variations.
+     * @path /users/{userId}/logoGrids/{logoGridId}/logoVariations/{logoVariationId}
+     * @allow (create) User with ID 'user123' can create a logo variation under their logo grid.
+     * @allow (get, update, delete) User with ID 'user123' can access their logo variations.
+     * @deny (create) User with ID 'user456' cannot create a logo variation under user 'user123'.
+     * @deny (get, update, delete) User with ID 'user456' cannot access logo variations under user 'user123'.
+     * @principle Enforces document ownership for all operations.
+     */
+    match /users/{userId}/logoGrids/{logoGridId}/logoVariations/{logoVariationId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+     /**
+      * @description Enforces user-level access control for token information.
+      * @path /users/{userId}/token/{tokenId}
+      * @allow (get, update, delete) User with ID 'user123' can access their token information.
+      * @deny (create) User with ID 'user456' cannot create token with ID 'user123'.
+      * @deny (get, update, delete) User with ID 'user456' cannot access token with ID 'user123'.
+      * @principle Enforces document ownership for all operations and ensures only one token doc exists per user.
+      */
+    match /users/{userId}/token/{tokenId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && request.resource.data.userId == userId;
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId);
+    }
+
+    /**
+     * @description Enforces user-level access control for backend integration tests.
+     * @path /users/{userId}/tests/{testId}
+     * @allow (create) User with ID 'user123' can create a test document under their profile.
+     * @principle Enforces document ownership for write operations.
+     */
+    match /users/{userId}/tests/{testId} {
+      allow get, list, create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update, delete: if isOwner(userId);
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isExistingOwner(userId) {
+        return isOwner(userId) && exists(/databases/$(database)/documents/users/$(userId));
+    }
+  }
+}

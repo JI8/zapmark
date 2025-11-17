@@ -1,0 +1,100 @@
+{
+  "placeholderImages": [
+    {
+      "id": "1",
+      "description": "Abstract Shape 1",
+      "imageUrl": "https://images.unsplash.com/photo-1620121478247-ec786b9be2fa?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxhYnN0cmFjdCUyMHNoYXBlfGVufDB8fHx8MTc2Mjk2Mjg4MHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "abstract shape"
+    },
+    {
+      "id": "2",
+      "description": "Abstract Shape 2",
+      "imageUrl": "https://images.unsplash.com/photo-1761044590997-6d3860410cbe?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxtb2Rlcm4lMjBsb2dvfGVufDB8fHx8MTc2MzA0MTM4M3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "modern logo"
+    },
+    {
+      "id": "3",
+      "description": "Abstract Shape 3",
+      "imageUrl": "https://images.unsplash.com/photo-1602750600155-1970ac3ad999?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxnZW9tZXRyaWMlMjBkZXNpZ258ZW58MHx8fHwxNzYyOTQwMjQ3fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "geometric design"
+    },
+    {
+      "id": "4",
+      "description": "Abstract Shape 4",
+      "imageUrl": "https://images.unsplash.com/photo-1705154580249-55990fe3a8fb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxtaW5pbWFsaXN0JTIwaWNvbnxlbnwwfHx8fDE3NjMwNDMzOTV8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "minimalist icon"
+    },
+    {
+      "id": "5",
+      "description": "Abstract Shape 5",
+      "imageUrl": "https://images.unsplash.com/photo-1692372374563-9ab54f303b7b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxncmFkaWVudCUyMGxvZ298ZW58MHx8fHwxNzYzMDQzMzk1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "gradient logo"
+    },
+    {
+      "id": "6",
+      "description": "Abstract Shape 6",
+      "imageUrl": "https://images.unsplash.com/photo-1536148935331-408321065b18?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHx0ZWNoJTIwY29tcGFueXxlbnwwfHx8fDE3NjI5Njc1OTF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "tech company"
+    },
+    {
+      "id": "7",
+      "description": "Abstract Shape 7",
+      "imageUrl": "https://images.unsplash.com/photo-1590102426319-c7526718cd70?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxzdGFydHVwJTIwYnJhbmR8ZW58MHx8fHwxNzYzMDQzMzk1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "startup brand"
+    },
+    {
+      "id": "8",
+      "description": "Abstract Shape 8",
+      "imageUrl": "https://images.unsplash.com/photo-1595409583957-5d1ec5869de9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxjcmVhdGl2ZSUyMGVtYmxlbXxlbnwwfHx8fDE3NjMwNDMzOTV8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "creative emblem"
+    },
+    {
+      "id": "9",
+      "description": "Abstract Shape 9",
+      "imageUrl": "https://images.unsplash.com/photo-1508267881578-893f1ed1c5cc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxzaW1wbGUlMjBzeW1ib2x8ZW58MHx8fHwxNzYzMDQzMzk1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "simple symbol"
+    },
+    {
+      "id": "10",
+      "description": "Abstract Shape 10",
+      "imageUrl": "https://images.unsplash.com/photo-1760553120264-98dd3d59fc02?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxmdXR1cmlzdGljJTIwbG9nb3xlbnwwfHx8fDE3NjMwMDg1NzF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "futuristic logo"
+    },
+    {
+      "id": "11",
+      "description": "Abstract Shape 11",
+      "imageUrl": "https://images.unsplash.com/photo-1719665038869-6667a57640db?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxvcmdhbmljJTIwc2hhcGV8ZW58MHx8fHwxNzYzMDQzMzk1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "organic shape"
+    },
+    {
+      "id": "12",
+      "description": "Abstract Shape 12",
+      "imageUrl": "https://images.unsplash.com/photo-1589640255711-f496d6eefe02?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8Ym9sZCUyMGxldHRlcm1hcmt8ZW58MHx8fHwxNzYzMDQzMzk1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "bold lettermark"
+    },
+    {
+      "id": "13",
+      "description": "Abstract Shape 13",
+      "imageUrl": "https://images.unsplash.com/photo-1761110518837-689557b142bf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxlbGVnYW50JTIwbW9ub2dyYW18ZW58MHx8fHwxNzYzMDQzMzk2fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "elegant monogram"
+    },
+    {
+      "id": "14",
+      "description": "Abstract Shape 14",
+      "imageUrl": "https://images.unsplash.com/photo-1701928607218-ffbf1ae5819f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHx2aWJyYW50JTIwbWFya3xlbnwwfHx8fDE3NjMwNDMzOTV8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "vibrant mark"
+    },
+    {
+      "id": "15",
+      "description": "Abstract Shape 15",
+      "imageUrl": "https://images.unsplash.com/photo-1760037034697-eee0b07ae072?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxkeW5hbWljJTIwaWNvbnxlbnwwfHx8fDE3NjMwNDMzOTZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "dynamic icon"
+    },
+    {
+      "id": "16",
+      "description": "Abstract Shape 16",
+      "imageUrl": "https://images.unsplash.com/photo-1700887938966-01f0450aee8c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxjb3Jwb3JhdGUlMjBpZGVudGl0eXxlbnwwfHx8fDE3NjI5NzY5NjF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "corporate identity"
+    }
+  ]
+}

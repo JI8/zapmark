@@ -1,0 +1,233 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the Zapmark AI application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user entity."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user.",
+          "format": "email"
+        },
+        "name": {
+          "type": "string",
+          "description": "Full name of the user."
+        },
+        "creationDate": {
+          "type": "string",
+          "description": "Date and time when the user account was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "name",
+        "creationDate"
+      ]
+    },
+    "LogoGrid": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "LogoGrid",
+      "type": "object",
+      "description": "Represents a generated logo grid.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the logo grid."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N LogoGrid)"
+        },
+        "concept": {
+          "type": "string",
+          "description": "The text concept used to generate the logo grid."
+        },
+        "gridSize": {
+          "type": "string",
+          "description": "The size of the logo grid (e.g., 3x3, 4x4)."
+        },
+        "generationDate": {
+          "type": "string",
+          "description": "Date and time when the logo grid was generated.",
+          "format": "date-time"
+        },
+        "logoVariations": {
+          "type": "array",
+          "description": "Array of references to the logo variations generated for this grid.",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "concept",
+        "gridSize",
+        "generationDate",
+        "logoVariations"
+      ]
+    },
+    "LogoVariation": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "LogoVariation",
+      "type": "object",
+      "description": "Represents a single logo variation within a logo grid.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the logo variation."
+        },
+        "logoGridId": {
+          "type": "string",
+          "description": "Reference to LogoGrid. (Relationship: LogoGrid 1:N LogoVariation)"
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL of the image for the logo variation."
+        },
+        "prompt": {
+          "type": "string",
+          "description": "The prompt used to generate this logo variation."
+        },
+        "upscaleDate": {
+          "type": "string",
+          "description": "Date and time when this logo was last upscaled, if applicable.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "logoGridId",
+        "imageUrl",
+        "prompt"
+      ]
+    },
+    "Token": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Token",
+      "type": "object",
+      "description": "Represents a user's token balance and usage.",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:1 Token)"
+        },
+        "monthlyAllotment": {
+          "type": "number",
+          "description": "The user's monthly token allotment based on their billing plan."
+        },
+        "tokensUsed": {
+          "type": "number",
+          "description": "The number of tokens used by the user in the current month."
+        },
+        "lastRefillDate": {
+          "type": "string",
+          "description": "The date the tokens were last refilled for the user. (Used for monthly reloads)",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "userId",
+        "monthlyAllotment",
+        "tokensUsed",
+        "lastRefillDate"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles, addressable only by the user's unique ID.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/logoGrids/{logoGridId}",
+        "definition": {
+          "entityName": "LogoGrid",
+          "schema": {
+            "$ref": "#/backend/entities/LogoGrid"
+          },
+          "description": "Stores logo grids generated by a user. Each logo grid is associated with a specific user. Includes denormalized 'userId' for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            },
+            {
+              "name": "logoGridId",
+              "description": "The unique identifier for the logo grid."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/logoGrids/{logoGridId}/logoVariations/{logoVariationId}",
+        "definition": {
+          "entityName": "LogoVariation",
+          "schema": {
+            "$ref": "#/backend/entities/LogoVariation"
+          },
+          "description": "Stores logo variations within a specific logo grid for a user. Includes denormalized 'userId' and 'logoGridId' for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            },
+            {
+              "name": "logoGridId",
+              "description": "The unique identifier for the logo grid."
+            },
+            {
+              "name": "logoVariationId",
+              "description": "The unique identifier for the logo variation."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/token",
+        "definition": {
+          "entityName": "Token",
+          "schema": {
+            "$ref": "#/backend/entities/Token"
+          },
+          "description": "Stores the token information for a given user. There is one token document per user.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to ensure security, scalability, and ease of debugging, following the principles of Authorization Independence, Clarity of Intent, DBAC, and QAPs. \n\nUser data is stored under `/users/{userId}`, providing clear ownership. LogoGrids and LogoVariations are structured as subcollections under the user, ensuring proper data hierarchy. The `Token` entity is located under `/users/{userId}/token` establishing a clear 1:1 relationship. \n\n**Authorization Independence:** Ownership is enforced through path-based rules (`/users/{userId}`). Each `LogoGrid` and `LogoVariation` is implicitly associated with the `userId` in its path. Thus, rules can validate `request.auth.uid == userId` without needing `get()` calls.\n\n**QAPs (Rules are not Filters):** The structure enables secure list operations because all documents in a collection share the same security requirements (e.g., only the authenticated user can list their own logo grids and variations). There's no mixing of data with different access needs in the same collections. All access control is based on the user ID present in the path.\n\n**Denormalization:** While the structure doesn't explicitly denormalize data in this simplified model, it's ready for denormalization if future requirements dictate that access to `LogoGrid` or `LogoVariation` depends on User attributes. In such scenarios, relevant user data can be copied into the `LogoGrid` and `LogoVariation` documents to avoid `get()` calls.\n\n**Explicit State Modeling:** The schemas include explicit fields like `generationDate` and `upscaleDate`, enabling clear tracking of entity states. Consistent naming conventions like `userId` and `logoGridId` promote radical consistency. The structure avoids dynamic keys and promotes the use of arrays with static keys (e.g., `logoVariations` within `LogoGrid`)."
+  }
+}
