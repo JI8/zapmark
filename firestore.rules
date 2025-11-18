@@ -50,8 +50,8 @@ service cloud.firestore {
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
       allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && resource.data.userId == userId;
-      allow delete: if isExistingOwner(userId);
+      allow update: if isOwner(userId) && resource.data.userId == userId;
+      allow delete: if isOwner(userId);
     }
 
     /**
@@ -88,6 +88,21 @@ service cloud.firestore {
     }
 
     /**
+     * @description Enforces user-level access control for token transaction logs.
+     * @path /users/{userId}/tokenTransactions/{transactionId}
+     * @allow (create) User with ID 'user123' can create transaction logs under their profile.
+     * @allow (get, list) User with ID 'user123' can read their transaction history.
+     * @principle Enforces document ownership for all operations.
+     */
+    match /users/{userId}/tokenTransactions/{transactionId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if false; // Transaction logs are immutable
+      allow delete: if false; // Transaction logs cannot be deleted
+    }
+
+    /**
      * @description Enforces user-level access control for backend integration tests.
      * @path /users/{userId}/tests/{testId}
      * @allow (create) User with ID 'user123' can create a test document under their profile.
@@ -96,6 +111,27 @@ service cloud.firestore {
     match /users/{userId}/tests/{testId} {
       allow get, list, create: if isOwner(userId) && request.resource.data.userId == userId;
       allow update, delete: if isOwner(userId);
+    }
+
+    /**
+     * @description Monitoring logs - error logs, metric logs, event logs
+     * @path /errorLogs/{logId}, /metricLogs/{logId}, /eventLogs/{logId}
+     * @allow (create) Any authenticated user can create logs
+     * @principle Allows monitoring and observability
+     */
+    match /errorLogs/{logId} {
+      allow create: if isSignedIn();
+      allow read: if false; // Only admins should read (implement admin check later)
+    }
+    
+    match /metricLogs/{logId} {
+      allow create: if isSignedIn();
+      allow read: if false;
+    }
+    
+    match /eventLogs/{logId} {
+      allow create: if isSignedIn();
+      allow read: if false;
     }
 
     // Helper functions

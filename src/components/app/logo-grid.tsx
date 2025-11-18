@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { Download, Scaling, Wand2, Sparkles } from 'lucide-react';
+import { Download, Scaling, Wand2, Sparkles, Shuffle } from 'lucide-react';
 import { type Logo } from '@/app/page';
 import { cn } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
@@ -16,10 +16,11 @@ interface LogoGridProps {
   logos: Logo[];
   onSelectLogo: (logo: Logo) => void;
   isLoading: boolean;
-  gridSize: '3x3' | '4x4';
+  gridSize: '2x2' | '3x3' | '4x4';
   isAuthenticated: boolean;
   onUpscale?: (logo: Logo) => void;
   onGenerateVariations?: (logo: Logo) => void;
+  onGenerateVariety?: (logo: Logo) => void;
   isSingleImage?: boolean;
 }
 
@@ -37,10 +38,12 @@ export default function LogoGrid(props: LogoGridProps) {
   // For single images, use grid-cols-1 to make it full width
   const gridCols = isSingleImage 
     ? 'grid-cols-1' 
-    : gridSize === '3x3' 
-      ? 'grid-cols-2 sm:grid-cols-3' 
-      : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4';
-  const skeletonCount = gridSize === '3x3' ? 9 : 16;
+    : gridSize === '2x2'
+      ? 'grid-cols-2'
+      : gridSize === '3x3' 
+        ? 'grid-cols-2 sm:grid-cols-3' 
+        : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4';
+  const skeletonCount = gridSize === '2x2' ? 4 : gridSize === '3x3' ? 9 : 16;
 
   const handleDownload = async (logo: Logo, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -101,6 +104,14 @@ export default function LogoGrid(props: LogoGridProps) {
     // This will be handled by the parent component
     if (props.onGenerateVariations) {
       props.onGenerateVariations(logo);
+    }
+  };
+
+  const handleVariety = (logo: Logo, e: React.MouseEvent) => {
+    e.stopPropagation();
+    // This will be handled by the parent component
+    if (props.onGenerateVariety) {
+      props.onGenerateVariety(logo);
     }
   };
 
@@ -169,13 +180,13 @@ export default function LogoGrid(props: LogoGridProps) {
               <div className="absolute bottom-3 left-0 right-0 flex items-center justify-center gap-1.5 px-3">
                 <Button
                   variant="secondary"
-                  size="sm"
-                  className="h-9 px-2.5 bg-white/95 hover:bg-white text-foreground shadow-lg text-xs"
+                  size="icon"
+                  className="h-9 w-9 bg-white/95 hover:bg-white text-foreground shadow-lg"
                   onClick={(e) => handleDownload(logo, e)}
                   aria-label="Download logo"
+                  title="Download"
                 >
-                  <Download className="h-3.5 w-3.5 mr-1" />
-                  Download
+                  <Download className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="secondary"
@@ -183,9 +194,19 @@ export default function LogoGrid(props: LogoGridProps) {
                   className="h-9 w-9 bg-white/95 hover:bg-white text-foreground shadow-lg"
                   onClick={(e) => handleVariations(logo, e)}
                   aria-label="Generate variations"
-                  title="Generate 3x3 variations"
+                  title="Variations - same style, different details"
                 >
                   <Sparkles className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="h-9 w-9 bg-white/95 hover:bg-white text-foreground shadow-lg"
+                  onClick={(e) => handleVariety(logo, e)}
+                  aria-label="Generate variety"
+                  title="Variety - same style, different subject"
+                >
+                  <Shuffle className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="secondary"

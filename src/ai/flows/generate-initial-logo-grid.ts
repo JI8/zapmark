@@ -15,8 +15,7 @@ import { monitoringService } from '@/lib/monitoring/monitoring-service';
 
 const GenerateInitialLogoGridInputSchema = z.object({
   textConcept: z.string().describe('A text concept for the generation.'),
-  gridSize: z.enum(['3x3', '4x4']).default('3x3').describe('The size of the grid to generate.'),
-  generationType: z.enum(['logo', 'custom', 'sticker']).default('logo').describe('The type of asset to generate.'),
+  gridSize: z.enum(['2x2', '3x3', '4x4']).default('3x3').describe('The size of the grid to generate.'),
 });
 
 export type GenerateInitialLogoGridInput = z.infer<typeof GenerateInitialLogoGridInputSchema>;
@@ -55,7 +54,7 @@ export async function generateInitialLogoGrid(
         'generateInitialLogoGrid',
         result.error || new Error('Generation failed'),
         undefined,
-        { gridSize: input.gridSize, generationType: input.generationType, duration }
+        { gridSize: input.gridSize, duration }
       );
       
       throw result.error || new Error('Failed to generate logo grid');
@@ -67,7 +66,7 @@ export async function generateInitialLogoGrid(
       'generateInitialLogoGrid',
       duration,
       undefined,
-      { gridSize: input.gridSize, generationType: input.generationType }
+      { gridSize: input.gridSize }
     );
     
     return result.data;
@@ -75,12 +74,12 @@ export async function generateInitialLogoGrid(
     // Categorize and log error
     const errorResult = errorService.categorizeError(error, {
       operation: 'generateInitialLogoGrid',
-      metadata: { gridSize: input.gridSize, generationType: input.generationType },
+      metadata: { gridSize: input.gridSize },
     });
     
     errorService.logError(error, {
       operation: 'generateInitialLogoGrid',
-      metadata: { gridSize: input.gridSize, generationType: input.generationType },
+      metadata: { gridSize: input.gridSize },
     });
     
     // Re-throw with user-friendly message
@@ -88,13 +87,8 @@ export async function generateInitialLogoGrid(
   }
 }
 
-// Define different prompt templates
-const prompts = {
-  logo: `Generate a single image that is a {{gridSize}} grid of distinct logo variations for the following concept: "{{textConcept}}". The logos should be clearly separated and centered within their grid cell. Do not include any text or numbering outside of the logos themselves. The background should be a neutral color.`,
-  custom: `Generate a single image that is a {{gridSize}} grid of distinct variations for the following concept: "{{textConcept}}". The items should be clearly separated and centered within their grid cell. Do not include any text or numbering outside of the items themselves. The background should be a neutral color.`,
-  sticker: `Generate a single image that is a {{gridSize}} grid of distinct sticker designs for the following concept: "{{textConcept}}". The stickers should have a die-cut look with a white border, be clearly separated, and centered within their grid cell. Do not include any text or numbering. The background should be a neutral gray.`,
-};
-
+// Simplified prompt - style is now handled by the form
+const promptTemplate = `Generate a single image that is an evenly spaced {{gridSize}} grid of distinct variations for the following: "{{textConcept}}". Each variation should be clearly different from one another - no duplicates or near-duplicates. Each item should be evenly spaced, clearly separated, and centered within their grid cell in a perfect {{gridSize}} layout. Do not include any text or numbering outside of the items themselves. The background should be a neutral color.`;
 
 const generateInitialLogoGridFlow = ai.defineFlow(
   {
@@ -103,12 +97,9 @@ const generateInitialLogoGridFlow = ai.defineFlow(
     outputSchema: GenerateInitialLogoGridOutputSchema,
   },
   async input => {
-    // Select the prompt based on the generation type
-    const promptText = prompts[input.generationType];
-
     const prompt = ai.definePrompt({
-      name: `generateInitialGridPrompt_${input.generationType}`, // Unique name per type
-      prompt: promptText,
+      name: 'generateInitialGridPrompt',
+      prompt: promptTemplate,
       model: 'googleai/gemini-2.5-flash-image-preview',
       config: {
         responseModalities: ['TEXT', 'IMAGE'],

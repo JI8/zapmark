@@ -90,7 +90,7 @@ const generateVariationGridFlow = ai.defineFlow(
     const {media} = await ai.generate({
       prompt: [
         {media: {url: input.baseLogo}},
-        {text: 'Generate a single image that is a 3x3 grid of 9 distinct and unique variations of this logo. Each variation should maintain the same visual style and concept but with different details, colors, compositions, or stylistic approaches. Make sure each of the 9 variations is clearly different from the others - no duplicates or near-duplicates. The logos should be clearly separated and centered within their grid cells. Do not include any text or numbering. The background should be a neutral color.'},
+        {text: 'Generate a single image that is an evenly spaced 3x3 grid of 9 distinct and unique variations of this logo. Each variation should maintain the same general concept and subject but with different details, colors, compositions, or stylistic approaches. Feel free to explore different artistic styles while keeping the core subject recognizable. Make sure each of the 9 variations is clearly different from the others - no duplicates or near-duplicates. The logos should be evenly spaced, clearly separated, and centered within their grid cells in a perfect 3x3 layout. Do not include any text or numbering. The background should be a neutral color.'},
       ],
       model: 'googleai/gemini-2.5-flash-image-preview',
       config: {

@@ -20,18 +20,20 @@ import {
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { Download, Sparkles } from 'lucide-react';
+import { Download, Sparkles, Copy } from 'lucide-react';
 import Header from '@/components/layout/header';
 import LogoGeneratorForm, { type LogoGenSchema } from '@/components/app/logo-generator-form';
 import LogoGrid from '@/components/app/logo-grid';
 import EditSidebar from '@/components/app/edit-sidebar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useUser, useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, useStorage } from '@/firebase';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { sliceGridImage } from '@/lib/image-slicer';
 import { generateInitialLogoGrid } from '@/ai/flows/generate-initial-logo-grid';
 import { generateVariationGrid } from '@/ai/flows/generate-variation-grid';
+import { generateVarietyGrid } from '@/ai/flows/generate-variety-grid';
 import { upscaleAndCleanupLogo } from '@/ai/flows/upscale-and-cleanup-logo';
 import { tokenManager } from '@/lib/tokens/token-manager';
 import { errorService } from '@/lib/errors/error-service';
@@ -57,8 +59,9 @@ export type LogoGridDoc = {
   id: string;
   concept: string;
   creationDate: any;
-  gridSize: '3x3' | '4x4';
+  gridSize: '2x2' | '3x3' | '4x4';
   userId: string;
+  type?: 'concept' | 'variations' | 'variety' | 'upscale';
 } & DocumentData;
 
 type GridWithLogos = {
@@ -306,16 +309,19 @@ export default function Home() {
     try {
       // Removed toast - loading state shows progress
 
+      // Build enhanced prompt for AI generation
+      const { buildPromptWithStyle } = await import('@/lib/generation-styles');
+      const enhancedPrompt = buildPromptWithStyle(data.textConcept, data.styleId);
+
       const result = await generateInitialLogoGrid({
-        textConcept: data.textConcept,
+        textConcept: enhancedPrompt,
         gridSize: data.gridSize,
-        generationType: data.generationType,
       });
       
       shouldRefund = false; // Generation succeeded
 
-      const rows = data.gridSize === '3x3' ? 3 : 4;
-      const cols = data.gridSize === '3x3' ? 3 : 4;
+      const rows = data.gridSize === '2x2' ? 2 : data.gridSize === '3x3' ? 3 : 4;
+      const cols = data.gridSize === '2x2' ? 2 : data.gridSize === '3x3' ? 3 : 4;
       const slicedImages = await sliceGridImage(result.logoGridImage, rows, cols);
 
       temporaryLogos = slicedImages.map((dataUrl, index) => ({
@@ -332,6 +338,7 @@ export default function Home() {
           concept: data.textConcept,
           creationDate: new Date(),
           gridSize: data.gridSize,
+          type: 'concept',
           userId: user.uid,
         },
         logos: temporaryLogos,
@@ -388,6 +395,7 @@ export default function Home() {
         userId: user.uid, 
         concept: data.textConcept,
         gridSize: data.gridSize,
+        type: 'concept' as const,
         creationDate: serverTimestamp(),
       };
       batch.set(gridDocRef, logoGridData);
@@ -419,7 +427,7 @@ export default function Home() {
       const errorResult = errorService.categorizeError(error, {
         operation: 'generateInitialLogoGrid',
         userId: user.uid,
-        metadata: { gridSize: data.gridSize, generationType: data.generationType },
+        metadata: { gridSize: data.gridSize },
       });
       
       // Refund token if generation failed (not if just saving failed)
@@ -534,6 +542,10 @@ export default function Home() {
     try {
       // Removed toast - loading state shows progress
 
+      // Find parent grid to get the concept name
+      const parentGrid = allGrids.find(g => g.grid.id === logo.logoGridId);
+      const parentConcept = parentGrid?.grid.concept || 'Logo';
+
       // Generate 3x3 variation grid
       const result = await generateVariationGrid({
         baseLogo: logo.url,
@@ -555,9 +567,10 @@ export default function Home() {
       tempGrid = {
         grid: {
           id: 'temp-' + Date.now(),
-          concept: `Variations of ${logo.id.substring(0, 8)}`,
+          concept: parentConcept,
           creationDate: new Date(),
           gridSize: '3x3',
+          type: 'variations',
           userId: user.uid,
         },
         logos: temporaryLogos,
@@ -611,6 +624,7 @@ export default function Home() {
         userId: user.uid,
         concept: tempGrid.grid.concept,
         gridSize: '3x3' as const,
+        type: 'variations' as const,
         creationDate: serverTimestamp(),
       };
       batch.set(gridDocRef, logoGridData);
@@ -658,6 +672,153 @@ export default function Home() {
     }
   };
 
+  const handleGenerateVariety = async (logo: Logo) => {
+    if (!user || !firestore || !storage) {
+      toast({
+        variant: 'destructive',
+        title: 'Please Log In',
+        description: 'You must be logged in to generate variety.',
+      });
+      return;
+    }
+
+    // Check and deduct token first
+    const tokenResult = await deductToken(1, 'generateVarietyGrid');
+    if (!tokenResult.success) {
+      return; // Token deduction failed, error already shown
+    }
+
+    setIsLoading(true);
+    let shouldRefund = true;
+    let tempGrid: GridWithLogos | null = null;
+    
+    try {
+      // Find parent grid to get the concept name
+      const parentGrid = allGrids.find(g => g.grid.id === logo.logoGridId);
+      const parentConcept = parentGrid?.grid.concept || 'Logo';
+
+      // Generate 3x3 variety grid
+      const result = await generateVarietyGrid({
+        baseLogo: logo.url,
+      });
+      
+      shouldRefund = false; // Generation succeeded
+
+      // Slice the grid into individual tiles
+      const slicedImages = await sliceGridImage(result.varietyGridImage, 3, 3);
+
+      const temporaryLogos = slicedImages.map((dataUrl, index) => ({
+        id: `temp-${Date.now()}-${index}`,
+        url: dataUrl,
+        isUnsaved: true,
+        tileIndex: index,
+      }));
+
+      // Create temporary grid
+      tempGrid = {
+        grid: {
+          id: 'temp-' + Date.now(),
+          concept: parentConcept,
+          creationDate: new Date(),
+          gridSize: '3x3',
+          type: 'variety',
+          userId: user.uid,
+        },
+        logos: temporaryLogos,
+      };
+
+      // Add to top of grids list
+      setAllGrids(prev => [tempGrid!, ...prev]);
+      setIsLoading(false);
+      
+      // Scroll to top to show new grid
+      setTimeout(() => scrollToTop(), 100);
+
+      // Save in background
+      setIsSaving(true);
+      const newLogoGridId = doc(collection(firestore, 'users', user.uid, 'logoGrids')).id;
+      const gridDocRef = doc(firestore, 'users', user.uid, 'logoGrids', newLogoGridId);
+
+      const savedLogos: Logo[] = [];
+      const batch = writeBatch(firestore);
+
+      for (const [index, tempLogo] of temporaryLogos.entries()) {
+        const variationId = doc(collection(firestore, `users/${user.uid}/logoGrids/${newLogoGridId}/logoVariations`)).id;
+        const storageRef = ref(storage, `users/${user.uid}/logos/${newLogoGridId}/${variationId}.png`);
+        
+        const uploadTask = await uploadString(storageRef, tempLogo.url, 'data_url');
+        const downloadUrl = await getDownloadURL(uploadTask.ref);
+  
+        const variationData: LogoVariation = {
+          id: variationId,
+          logoGridId: newLogoGridId,
+          imageUrl: downloadUrl,
+          tileIndex: tempLogo.tileIndex!,
+        };
+  
+        const variationDocRef = doc(firestore, 'users', user.uid, 'logoGrids', newLogoGridId, 'logoVariations', variationId);
+        batch.set(variationDocRef, variationData);
+
+        savedLogos.push({
+          ...tempLogo,
+          id: variationId,
+          url: tempLogo.url,
+          isUnsaved: false,
+          logoGridId: newLogoGridId,
+        });
+      }
+
+      const logoGridData = {
+        id: newLogoGridId,
+        userId: user.uid,
+        concept: tempGrid.grid.concept,
+        gridSize: '3x3' as const,
+        type: 'variety' as const,
+        creationDate: serverTimestamp(),
+      };
+      batch.set(gridDocRef, logoGridData);
+
+      await batch.commit();
+
+      // Update the temporary grid with saved data
+      setAllGrids(prev => prev.map(g => 
+        g.grid.id === tempGrid?.grid.id 
+          ? {
+              grid: { ...logoGridData, creationDate: new Date() },
+              logos: savedLogos.sort((a, b) => a.tileIndex! - b.tileIndex!),
+            }
+          : g
+      ));
+    } catch (error) {
+      console.error('Variety generation failed:', error);
+      
+      // Categorize error and determine if refund is needed
+      const errorResult = errorService.categorizeError(error, {
+        operation: 'generateVarietyGrid',
+        userId: user.uid,
+      });
+      
+      // Refund token if generation failed
+      if (shouldRefund && errorResult.shouldRefundToken) {
+        await refundToken(1, 'generateVarietyGrid', errorResult.message);
+      }
+      
+      toast({
+        variant: 'destructive',
+        title: 'Generation Failed',
+        description: errorResult.userMessage,
+      });
+      
+      // Remove temporary grid if generation failed
+      if (shouldRefund && tempGrid) {
+        setAllGrids(prev => prev.filter(g => g.grid.id !== tempGrid!.grid.id));
+      }
+    } finally {
+      setIsLoading(false);
+      setIsSaving(false);
+    }
+  };
+
   const handleUpscale = async (logo: Logo) => {
     if (!user || !firestore || !storage) {
       toast({
@@ -681,6 +842,10 @@ export default function Home() {
     try {
       // Removed toast - loading state shows progress
 
+      // Find parent grid to get the concept name
+      const parentGrid = allGrids.find(g => g.grid.id === logo.logoGridId);
+      const parentConcept = parentGrid?.grid.concept || 'Logo';
+
       // Upscale the logo
       const result = await upscaleAndCleanupLogo({
         logoDataUri: logo.url,
@@ -699,9 +864,10 @@ export default function Home() {
       tempGrid = {
         grid: {
           id: 'temp-' + Date.now(),
-          concept: `Upscaled ${logo.id.substring(0, 8)}`,
+          concept: parentConcept,
           creationDate: new Date(),
           gridSize: '3x3',
+          type: 'upscale',
           userId: user.uid,
         },
         logos: [upscaledLogo],
@@ -743,6 +909,7 @@ export default function Home() {
         userId: user.uid,
         concept: tempGrid.grid.concept,
         gridSize: '3x3' as const,
+        type: 'upscale' as const,
         creationDate: serverTimestamp(),
       };
       batch.set(gridDocRef, logoGridData);
@@ -804,23 +971,25 @@ export default function Home() {
       <main className="flex flex-col md:flex-row h-[calc(100vh-4rem)]">
         {/* Fixed Left Sidebar */}
         <aside className="w-full md:w-[440px] border-b md:border-b-0 md:border-r bg-background flex flex-col">
-          <div className="flex-1 overflow-y-auto">
-            <div className="flex flex-col gap-6 md:gap-8 p-4 md:p-6">
-              <section>
-                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold font-headline tracking-tight">
-                  Generate Your Next Asset with AI
-                </h1>
-                <p className="mt-2 text-sm md:text-md text-muted-foreground">
-                  {user
-                    ? `What's on your mind, ${user.displayName?.split(' ')[0] || 'creator'}?`
-                    : 'Describe your vision and our AI will create unique assets.'}
-                </p>
-              </section>
-              <LogoGeneratorForm
-                onGenerate={handleGenerate}
-                isLoading={isLoading || isSaving}
-                isAuthenticated={!!user}
-              />
+          <div className="flex-1 overflow-y-auto flex items-center justify-center p-4 md:p-6">
+            <div className="w-full max-w-md">
+              <div className="bg-card border rounded-2xl shadow-sm p-6 space-y-6">
+                <section className="text-center">
+                  <h1 className="text-2xl md:text-3xl font-bold font-headline tracking-tight">
+                    Generate Your Next Asset with AI
+                  </h1>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {user
+                      ? `What's on your mind, ${user.displayName?.split(' ')[0] || 'creator'}?`
+                      : 'Describe your vision and our AI will create unique assets.'}
+                  </p>
+                </section>
+                <LogoGeneratorForm
+                  onGenerate={handleGenerate}
+                  isLoading={isLoading || isSaving}
+                  isAuthenticated={!!user}
+                />
+              </div>
             </div>
           </div>
         </aside>
@@ -910,8 +1079,50 @@ export default function Home() {
                       className="space-y-4"
                     >
                     <div className="flex items-center justify-between">
-                      <div>
-                        <h2 className="text-xl font-semibold">{gridWithLogos.grid.concept}</h2>
+                      <div className="flex-1 min-w-0 mr-4">
+                        <div className="flex items-center gap-2">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <h2 className="text-xl font-semibold truncate cursor-help">
+                                  {gridWithLogos.grid.concept}
+                                </h2>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom" className="max-w-md">
+                                <p className="text-sm">{gridWithLogos.grid.concept}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(gridWithLogos.grid.concept);
+                              toast({
+                                title: 'Copied!',
+                                description: 'Prompt copied to clipboard',
+                              });
+                            }}
+                            className="flex-shrink-0 p-1 hover:bg-accent rounded transition-colors"
+                            title="Copy prompt"
+                          >
+                            <Copy className="w-4 h-4 text-muted-foreground" />
+                          </button>
+                          
+                          {gridWithLogos.grid.type && (
+                            <span className={`
+                              flex-shrink-0 px-2 py-0.5 text-xs font-medium rounded-full
+                              ${gridWithLogos.grid.type === 'concept' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' : ''}
+                              ${gridWithLogos.grid.type === 'variations' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300' : ''}
+                              ${gridWithLogos.grid.type === 'variety' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300' : ''}
+                              ${gridWithLogos.grid.type === 'upscale' ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' : ''}
+                            `}>
+                              {gridWithLogos.grid.type === 'concept' && 'Concept'}
+                              {gridWithLogos.grid.type === 'variations' && 'Variations'}
+                              {gridWithLogos.grid.type === 'variety' && 'Variety'}
+                              {gridWithLogos.grid.type === 'upscale' && 'Upscaled'}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-sm text-muted-foreground">
                           {gridWithLogos.grid.creationDate instanceof Date 
                             ? gridWithLogos.grid.creationDate.toLocaleDateString()
@@ -924,7 +1135,7 @@ export default function Home() {
                         variant="outline"
                         size="sm"
                         onClick={() => handleDownloadAll(gridWithLogos)}
-                        className="gap-2"
+                        className="gap-2 hover:bg-gray-100 dark:hover:bg-gray-800"
                       >
                         <Download className="h-4 w-4" />
                         Download All
@@ -934,10 +1145,11 @@ export default function Home() {
                       logos={gridWithLogos.logos}
                       onSelectLogo={setSelectedLogo}
                       isLoading={false}
-                      gridSize={gridWithLogos.grid.gridSize}
+                      gridSize={gridWithLogos.grid.gridSize as '2x2' | '3x3' | '4x4'}
                       isAuthenticated={!!user}
                       onUpscale={handleUpscale}
                       onGenerateVariations={handleGenerateVariations}
+                      onGenerateVariety={handleGenerateVariety}
                       isSingleImage={gridWithLogos.logos.length === 1}
                     />
                     </motion.div>

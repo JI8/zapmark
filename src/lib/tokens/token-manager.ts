@@ -217,7 +217,23 @@ class TokenManager {
         'tokenTransactions'
       );
       
-      await addDoc(transactionsRef, transaction);
+      // Filter out undefined values to avoid Firestore errors
+      const cleanTransaction: any = {
+        userId: transaction.userId,
+        amount: transaction.amount,
+        type: transaction.type,
+        reason: transaction.reason,
+        balanceBefore: transaction.balanceBefore,
+        balanceAfter: transaction.balanceAfter,
+        timestamp: transaction.timestamp,
+      };
+      
+      // Only add metadata if it exists and is not empty
+      if (transaction.metadata && Object.keys(transaction.metadata).length > 0) {
+        cleanTransaction.metadata = transaction.metadata;
+      }
+      
+      await addDoc(transactionsRef, cleanTransaction);
     } catch (error) {
       // Don't throw - logging failure shouldn't break the operation
       console.error('[TokenManager] Transaction logging failed:', error);
