@@ -103,6 +103,21 @@ service cloud.firestore {
     }
 
     /**
+     * @description Enforces user-level access control for credit transaction logs.
+     * @path /users/{userId}/creditTransactions/{transactionId}
+     * @allow (create) User with ID 'user123' can create transaction logs under their profile.
+     * @allow (get, list) User with ID 'user123' can read their transaction history.
+     * @principle Enforces document ownership for all operations. Transactions are immutable.
+     */
+    match /users/{userId}/creditTransactions/{transactionId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if false; // Transaction logs are immutable
+      allow delete: if false; // Transaction logs cannot be deleted
+    }
+
+    /**
      * @description Enforces user-level access control for backend integration tests.
      * @path /users/{userId}/tests/{testId}
      * @allow (create) User with ID 'user123' can create a test document under their profile.
@@ -111,6 +126,18 @@ service cloud.firestore {
     match /users/{userId}/tests/{testId} {
       allow get, list, create: if isOwner(userId) && request.resource.data.userId == userId;
       allow update, delete: if isOwner(userId);
+    }
+
+    /**
+     * @description Configuration documents (credit costs, plans, etc.)
+     * @path /config/{docId}
+     * @allow (read) All authenticated users can read configuration
+     * @allow (write) Only server/admin can write (client writes blocked)
+     * @principle Configuration is read-only for clients
+     */
+    match /config/{docId} {
+      allow read: if isSignedIn();
+      allow write: if false; // Only server can write
     }
 
     /**

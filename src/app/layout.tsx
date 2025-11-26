@@ -6,7 +6,7 @@ import { FirebaseClientProvider } from '@/firebase';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
 export const metadata: Metadata = {
-  title: 'Zapmark AI',
+  title: 'Zapmark',
   description: 'Generate stunning logos with the power of AI',
 };
 

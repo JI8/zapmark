@@ -1,11 +1,12 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Loader2, Download, Sparkles, Palette, Scaling, Wand2, AlertTriangle } from 'lucide-react';
+import { Loader2, Download, Sparkles, Palette, Scaling, Wand2, AlertTriangle, Shuffle, Square, Grid3x3, Send } from 'lucide-react';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { collection, doc } from 'firebase/firestore';
-import type { Logo } from '@/app/page';
+import type { Logo } from '@/app/app/page';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import {
   Sheet,
   SheetContent,
@@ -30,6 +31,10 @@ interface EditSidebarProps {
   onOpenChange: (isOpen: boolean) => void;
   onUpdateLogo: (logo: Logo) => void;
   onAddLogo: (logo: Logo, currentTileCount: number) => void;
+  onUpscale?: (logo: Logo) => void;
+  onGenerateVariations?: (logo: Logo) => void;
+  onGenerateVariety?: (logo: Logo) => void;
+  onEdit?: (logo: Logo, prompt: string, mode: 'single' | 'grid') => void;
 }
 
 type LoadingStates = {
@@ -44,6 +49,10 @@ export default function EditSidebar({
   onOpenChange,
   onUpdateLogo,
   onAddLogo,
+  onUpscale,
+  onGenerateVariations,
+  onGenerateVariety,
+  onEdit,
 }: EditSidebarProps) {
   const { user } = useUser();
   const firestore = useFirestore();
@@ -55,8 +64,9 @@ export default function EditSidebar({
   });
   const [editText, setEditText] = useState('');
   const [variationText, setVariationText] = useState('');
+  const [editMode, setEditMode] = useState<'single' | 'grid'>('single');
   const { toast } = useToast();
-  
+
   useEffect(() => {
     if (logo) {
       setEditText('');
@@ -89,35 +99,16 @@ export default function EditSidebar({
     }
   };
 
-  const handleEdit = async () => {
-    if (!editText || !logo || !logo.logoGridId || !user) return;
-    setLoading((prev) => ({ ...prev, edit: true }));
-    try {
-      toast({ title: 'Applying AI edits...', description: 'Please wait a moment.' });
-      const result = await editLogoWithTextPrompt({
-        logoDataUri: logo.url, 
-        textPrompt: editText,
-      });
-      const newUrl = await uploadAndGetUrl(result.editedLogoDataUri, logo.id, logo.logoGridId);
-      onUpdateLogo({ ...logo, url: newUrl });
-      toast({ title: 'Success', description: 'Logo updated with your edits.' });
-      setEditText('');
-    } catch (error) {
-      console.error(error);
-      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-      toast({
-        variant: 'destructive',
-        title: 'Edit Failed',
-        description: `Could not apply edits. Reason: ${errorMessage}`,
-      });
-    } finally {
-      setLoading((prev) => ({ ...prev, edit: false }));
-    }
+  const handleEdit = () => {
+    if (!editText || !logo || !onEdit) return;
+    onEdit(logo, editText, editMode);
+    setEditText('');
+    onOpenChange(false);
   };
-  
+
   const handleVariation = async () => {
     if (!variationText || !logo || !logo.logoGridId || !user || !firestore) return;
-    setLoading(prev => ({...prev, variation: true}));
+    setLoading(prev => ({ ...prev, variation: true }));
     try {
       toast({ title: 'Generating variation...', description: 'The AI is creating a new concept.' });
       const result = await generateLogoVariation({
@@ -128,155 +119,178 @@ export default function EditSidebar({
       // Generate a new ID for the variation *before* uploading
       const newLogoId = doc(collection(firestore, `users/${user.uid}/logoGrids/${logo.logoGridId}/logoVariations`)).id;
       const newUrl = await uploadAndGetUrl(result.variedLogo, newLogoId, logo.logoGridId);
-      
+
       // The parent component will handle adding this to the state and DB
       onAddLogo({ id: newLogoId, url: newUrl, logoGridId: logo.logoGridId }, 0);
       setVariationText('');
       toast({ title: 'Success', description: 'New variation added.' });
     } catch (error) {
-       console.error(error);
-       const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+      console.error(error);
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
       toast({
         variant: 'destructive',
         title: 'Variation Failed',
         description: `Could not generate variation. Reason: ${errorMessage}`,
       });
     } finally {
-      setLoading(prev => ({...prev, variation: false}));
+      setLoading(prev => ({ ...prev, variation: false }));
     }
   }
 
-  const handleUpscale = async () => {
-    if (!logo || !logo.logoGridId || !user || !firestore) return;
-    setLoading(prev => ({...prev, upscale: true}));
-    try {
-       toast({ title: 'Upscaling logo...', description: 'This may take a moment.' });
-       const result = await upscaleAndCleanupLogo({
-        logoDataUri: logo.url,
-      });
-      
-      const newUpscaledId = doc(collection(firestore, `users/${user.uid}/logoGrids/${logo.logoGridId}/logoVariations`)).id;
-      const newUrl = await uploadAndGetUrl(result.upscaledLogoDataUri, newUpscaledId, logo.logoGridId);
-      
-      // The parent component will handle adding this to the state and DB
-      onAddLogo({ id: newUpscaledId, url: newUrl, logoGridId: logo.logoGridId }, 0);
+  const handleUpscale = () => {
+    if (!logo || !onUpscale) return;
+    onUpscale(logo);
+    onOpenChange(false);
+  };
 
-      toast({ title: 'Success', description: 'Upscaled version added as a new logo.' });
-    } catch (error) {
-       console.error(error);
-       const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-      toast({
-        variant: 'destructive',
-        title: 'Upscale Failed',
-        description: `Could not upscale logo. Reason: ${errorMessage}`,
-      });
-    } finally {
-      setLoading(prev => ({...prev, upscale: false}));
-    }
+  const handleVariations = () => {
+    if (!logo || !onGenerateVariations) return;
+    onGenerateVariations(logo);
+    onOpenChange(false);
+  };
+
+  const handleVariety = () => {
+    if (!logo || !onGenerateVariety) return;
+    onGenerateVariety(logo);
+    onOpenChange(false);
   };
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-md p-0 flex flex-col">
-        <SheetHeader className="p-6 pb-0">
-          <SheetTitle className="font-headline">Refine Your Logo</SheetTitle>
-          <SheetDescription>
-            Use AI to perfect your selected logo design.
-          </SheetDescription>
-        </SheetHeader>
-        <div className="p-6">
-          <div className="relative aspect-square w-full rounded-lg overflow-hidden border">
+      <SheetContent className="w-full sm:max-w-2xl p-0 flex flex-col h-full overflow-hidden">
+        {/* Extra Large Image Preview */}
+        <div className="flex-1 flex items-center justify-center p-8 min-h-0">
+          <div className="relative w-full aspect-square max-h-full max-w-2xl">
             <Image
               src={logo.url}
               alt="Selected logo"
               fill
-              className="object-cover"
-              sizes="50vw"
+              className="object-contain drop-shadow-2xl"
+              sizes="800px"
               unoptimized
             />
           </div>
         </div>
 
-        <Tabs defaultValue="edit" className="flex-1 flex flex-col min-h-0">
-          <TabsList className="grid w-full grid-cols-3 mx-auto max-w-sm">
-            <TabsTrigger value="edit"><Wand2 className="h-4 w-4 mr-1"/> Edit</TabsTrigger>
-            <TabsTrigger value="variations"><Palette className="h-4 w-4 mr-1"/> Vary</TabsTrigger>
-            <TabsTrigger value="upscale"><Scaling className="h-4 w-4 mr-1"/> Upscale</TabsTrigger>
-          </TabsList>
-          
-          <div className="flex-1 overflow-y-auto p-6">
-            {isActionDisabled && (
-              <Alert variant="default" className="mb-6 bg-amber-50 border-amber-200 text-amber-800">
-                <AlertTriangle className="h-4 w-4 !text-amber-600" />
-                <AlertTitle>Unsaved Logo</AlertTitle>
-                <AlertDescription>
-                  This is a temporary logo. Please save the grid to enable editing features.
-                </AlertDescription>
-              </Alert>
-            )}
+        {/* Actions Section */}
+        <div className="flex-shrink-0 bg-background border-t p-6 space-y-6">
+          {isActionDisabled && (
+            <Alert variant="default" className="bg-amber-50 border-amber-200 text-amber-800">
+              <AlertTriangle className="h-4 w-4 !text-amber-600" />
+              <AlertDescription className="text-sm">
+                Save the grid first to enable all features
+              </AlertDescription>
+            </Alert>
+          )}
 
-            <TabsContent value="edit" className="mt-0 space-y-4">
-               <Label htmlFor="edit-prompt">Describe your changes</Label>
-              <Textarea
-                id="edit-prompt"
-                placeholder="e.g., 'make the background color dark blue', 'change the font to be more modern'"
+          {/* Quick Actions Toolbar */}
+          <div className="grid grid-cols-4 gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDownload}
+              className="flex flex-col items-center justify-center h-auto py-3 gap-1.5 hover:bg-primary/5 hover:text-primary hover:border-primary/20"
+            >
+              <Download className="h-4 w-4" />
+              <span className="text-[10px] font-medium">Download</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleUpscale}
+              disabled={isActionDisabled}
+              className="flex flex-col items-center justify-center h-auto py-3 gap-1.5 hover:bg-primary/5 hover:text-primary hover:border-primary/20"
+            >
+              <Scaling className="h-4 w-4" />
+              <span className="text-[10px] font-medium">Upscale</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleVariations}
+              disabled={isActionDisabled}
+              className="flex flex-col items-center justify-center h-auto py-3 gap-1.5 hover:bg-primary/5 hover:text-primary hover:border-primary/20"
+            >
+              <Sparkles className="h-4 w-4" />
+              <span className="text-[10px] font-medium">Variations</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleVariety}
+              disabled={isActionDisabled}
+              className="flex flex-col items-center justify-center h-auto py-3 gap-1.5 hover:bg-primary/5 hover:text-primary hover:border-primary/20"
+            >
+              <Shuffle className="h-4 w-4" />
+              <span className="text-[10px] font-medium">Variety</span>
+            </Button>
+          </div>
+
+          {/* Edit Input Section - Dashboard Style */}
+          <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+            {/* Top row - Toggles */}
+            <div className="flex items-center px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-full p-1">
+                <button
+                  className={cn(
+                    "p-2 rounded-full transition-all",
+                    editMode === 'single'
+                      ? "bg-white dark:bg-gray-700 shadow-sm"
+                      : "hover:bg-gray-200 dark:hover:bg-gray-700"
+                  )}
+                  onClick={() => setEditMode('single')}
+                  title="Edit single image"
+                >
+                  <Square className="h-4 w-4" />
+                </button>
+                <button
+                  className={cn(
+                    "p-2 rounded-full transition-all",
+                    editMode === 'grid'
+                      ? "bg-white dark:bg-gray-700 shadow-sm"
+                      : "hover:bg-gray-200 dark:hover:bg-gray-700"
+                  )}
+                  onClick={() => setEditMode('grid')}
+                  title="Edit as grid"
+                >
+                  <Grid3x3 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            {/* Bottom row - Input and Send */}
+            <div className="flex items-center gap-2 p-2">
+              <input
+                type="text"
+                placeholder="Describe changes..."
                 value={editText}
                 onChange={(e) => setEditText(e.target.value)}
-                rows={4}
+                className="flex-1 px-3 py-2 text-sm bg-transparent focus:outline-none min-w-[200px]"
                 disabled={isActionDisabled}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && editText.trim() && !isActionDisabled) {
+                    handleEdit();
+                  }
+                }}
+                autoFocus
               />
-              <Button onClick={handleEdit} disabled={loading.edit || !editText || isActionDisabled} className="w-full">
+              <Button
+                size="icon"
+                className="h-9 w-9 rounded-full flex-shrink-0"
+                disabled={loading.edit || !editText.trim() || isActionDisabled}
+                onClick={handleEdit}
+              >
                 {loading.edit ? (
-                  <Loader2 className="animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <Sparkles className="mr-2 h-4 w-4" />
+                  <Send className="h-4 w-4" />
                 )}
-                Apply Edit
               </Button>
-            </TabsContent>
-            
-            <TabsContent value="variations" className="mt-0 space-y-4">
-              <Label htmlFor="variation-prompt">Describe a new variation</Label>
-              <Textarea
-                id="variation-prompt"
-                placeholder="e.g., 'a version with a shield', 'in a flat style'"
-                value={variationText}
-                onChange={(e) => setVariationText(e.target.value)}
-                rows={4}
-                disabled={isActionDisabled}
-              />
-              <Button onClick={handleVariation} disabled={loading.variation || !variationText || isActionDisabled} className="w-full">
-                {loading.variation ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  <Palette className="mr-2 h-4 w-4" />
-                )}
-                Generate Variation
-              </Button>
-            </TabsContent>
-
-            <TabsContent value="upscale" className="mt-0 text-center space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Enhance your logo to a high-resolution, production-quality image. This will add a new, upscaled variation to your grid.
-              </p>
-              <Button onClick={handleUpscale} disabled={loading.upscale || isActionDisabled} className="w-full" size="lg">
-                {loading.upscale ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  <Scaling className="mr-2 h-4 w-4" />
-                )}
-                Upscale & Clean Up
-              </Button>
-            </TabsContent>
+            </div>
           </div>
-        </Tabs>
-
-        <SheetFooter className="p-6 bg-secondary/50 border-t">
-          <Button onClick={handleDownload} variant="outline" className="w-full">
-            <Download className="mr-2 h-4 w-4" />
-            Download
-          </Button>
-        </SheetFooter>
+        </div>
       </SheetContent>
     </Sheet>
   );

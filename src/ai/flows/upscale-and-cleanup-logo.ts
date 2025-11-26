@@ -89,7 +89,7 @@ const upscaleAndCleanupLogoFlow = ai.defineFlow(
     const {media} = await ai.generate({
       prompt: [
         {media: {url: input.logoDataUri}},
-        {text: 'Take this logo concept and create a fully realized, production-quality version. Keep the exact same visual idea and concept, but elevate it - refine the composition, center it beautifully, fill the frame effectively, and add rich detail and polish. Transform this into a professional, high-resolution design with refined details, improved layout, and beautiful framing. The result should be the same concept but as a complete, polished, production-ready masterpiece.'},
+        {text: 'Reinterpret this logo at full resolution. Keep the exact same concept and visual idea, but create a professional, production-ready version with refined details, polished composition, and rich clarity. Fill the entire canvas. Make it a complete, high-quality masterpiece.'},
       ],
       model: 'googleai/gemini-2.5-flash-image-preview',
       config: {

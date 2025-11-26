@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { User, LogIn, LogOut } from 'lucide-react';
+import { User, LogIn, LogOut, X } from 'lucide-react';
 import { LogoIcon } from '@/components/icons/logo-icon';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -22,6 +22,8 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, serverTimestamp, setDoc, collection } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { HEADER_STYLES } from '@/components/layout/header-constants';
+import { cn } from '@/lib/utils';
 
 type TokenData = {
   userId: string;
@@ -30,7 +32,24 @@ type TokenData = {
   lastRefillDate: any;
 };
 
-export default function Header() {
+type Logo = {
+  id: string;
+  url: string;
+  isUnsaved?: boolean;
+  logoGridId?: string;
+  tileIndex?: number;
+};
+
+interface HeaderProps {
+  isGenerating?: boolean;
+  isDone?: boolean;
+  previewImage?: string | null;
+  onViewResults?: () => void;
+  selectedLogos?: Logo[];
+  onClearSelection?: () => void;
+}
+
+export default function Header({ isGenerating, isDone, previewImage, onViewResults, selectedLogos = [], onClearSelection }: HeaderProps) {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const firestore = useFirestore();
@@ -43,7 +62,7 @@ export default function Header() {
   }, [firestore, user]);
 
   const { data: userData, isLoading: isLoadingTokens } = useDoc<any>(userDocRef);
-  
+
   const remainingTokens = userData?.remainingTokens || 0;
 
 
@@ -51,6 +70,10 @@ export default function Header() {
   const handleLogin = async () => {
     if (!auth || !firestore) return;
     const provider = new GoogleAuthProvider();
+    // Force account selection every time
+    provider.setCustomParameters({
+      prompt: 'select_account'
+    });
     try {
       const result = await signInWithPopup(auth, provider);
       const gUser = result.user;
@@ -67,7 +90,7 @@ export default function Header() {
           monthlyTokenAllotment: 100,
           remainingTokens: 100,
         });
-        
+
         toast({
           title: 'Welcome!',
           description: 'Your account and initial tokens have been set up.',
@@ -108,25 +131,31 @@ export default function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex h-16">
+    <header className={HEADER_STYLES.wrapper}>
+      <div className={cn("flex", HEADER_STYLES.height)}>
         {/* Left sidebar header section */}
-        <div className="w-full md:w-[440px] flex items-center px-4 md:px-6 md:border-r">
+        <div className={cn(HEADER_STYLES.appSidebarWidth, "flex items-center px-4 md:px-6 md:border-r")}>
           <Link href="/" className="flex items-center gap-2">
-            <LogoIcon className="h-7 md:h-8 w-7 md:w-8" />
-            <span className="font-bold text-lg md:text-xl font-headline tracking-tight">Zapmark AI</span>
+            <LogoIcon className={HEADER_STYLES.logo} />
+            <span className={HEADER_STYLES.brandText}>Zapmark</span>
           </Link>
-          
+
           {/* Mobile nav */}
           <div className="ml-auto md:hidden">
             <nav className="flex items-center gap-2">
+              {user && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 text-amber-600 rounded-full border border-amber-200/50 mr-1">
+                  <Coins className="w-3.5 h-3.5" />
+                  <span className="text-sm font-semibold">{remainingTokens}</span>
+                </div>
+              )}
               {isUserLoading ? (
-                 <div className="h-9 w-9 bg-muted rounded-full animate-pulse" />
+                <div className="h-9 w-9 bg-muted rounded-full animate-pulse" />
               ) : user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Avatar className="cursor-pointer h-9 w-9">
-                      {user.photoURL && <AvatarImage src={user.photoURL} alt="User" />}
+                      <AvatarImage src={user.photoURL || ''} alt="User" />
                       <AvatarFallback>
                         {user.displayName ? user.displayName.charAt(0).toUpperCase() : <User />}
                       </AvatarFallback>
@@ -150,12 +179,67 @@ export default function Header() {
             </nav>
           </div>
         </div>
-        
+
         {/* Desktop right content header section */}
-        <div className="hidden md:flex flex-1 items-center justify-end px-6">
+        <div className="hidden md:flex flex-1 items-center justify-between px-4 md:px-6 lg:px-8">
+          {/* Loader Section */}
+          <div className="flex items-center">
+            {selectedLogos.length > 0 ? (
+              <div className="flex items-center gap-3 text-sm animate-in fade-in slide-in-from-left-2 duration-300">
+                <div className="flex items-center gap-2">
+                  <div className="flex -space-x-3 pl-1">
+                    {selectedLogos.map((logo, idx) => (
+                      <div
+                        key={logo.id}
+                        className="relative group/img shrink-0 transition-transform hover:z-10 hover:scale-110"
+                        style={{ zIndex: idx }}
+                      >
+                        <div className="w-8 h-8 rounded-lg border-2 border-background overflow-hidden bg-muted/20 shadow-sm">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={logo.url}
+                            alt="Selected"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <span className="text-muted-foreground font-medium">
+                    {selectedLogos.length} selected
+                  </span>
+                </div>
+                <div className="h-4 w-px bg-border mx-2" />
+                <button
+                  onClick={onClearSelection}
+                  className="p-1 hover:bg-accent rounded-full transition-colors"
+                  aria-label="Clear selection"
+                >
+                  <X className="h-4 w-4 text-muted-foreground" />
+                </button>
+              </div>
+            ) : isGenerating ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground animate-in fade-in slide-in-from-left-2 duration-300">
+                <div className="h-4 w-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                <span>Generating...</span>
+              </div>
+            ) : isDone && previewImage ? (
+              <button
+                onClick={onViewResults}
+                className="flex items-center gap-2 text-sm font-medium text-primary bg-primary/5 hover:bg-primary/10 px-3 py-1.5 rounded-full transition-colors animate-in fade-in slide-in-from-left-2 duration-300 group"
+              >
+                <div className="relative h-6 w-6 rounded overflow-hidden border border-primary/20">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={previewImage} alt="Generated" className="h-full w-full object-cover" />
+                </div>
+                <span>Done</span>
+                <span className="text-xs text-muted-foreground group-hover:text-primary/80 transition-colors">(Click to view)</span>
+              </button>
+            ) : null}
+          </div>
           <nav className="flex items-center gap-4">
             {isUserLoading ? (
-               <div className="h-9 w-9 bg-muted rounded-full animate-pulse" />
+              <div className="h-9 w-9 bg-muted rounded-full animate-pulse" />
             ) : user ? (
               <div className="flex items-center gap-4">
                 {isLoadingTokens ? (
